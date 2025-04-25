@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DGAuth", "DGAuth\DGAuth.csproj", "{03E32886-34A0-4103-A568-31E8CF60D441}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{03E32886-34A0-4103-A568-31E8CF60D441}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03E32886-34A0-4103-A568-31E8CF60D441}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03E32886-34A0-4103-A568-31E8CF60D441}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03E32886-34A0-4103-A568-31E8CF60D441}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E4127793-B858-491D-8C89-5851A776FA01}
+	EndGlobalSection
+EndGlobal
