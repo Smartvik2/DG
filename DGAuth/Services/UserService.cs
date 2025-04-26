@@ -17,18 +17,20 @@ namespace DGAuth.Services
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly AppDbContext _context;
         private readonly IEmailService _emailService;
-        private static readonly Dictionary<string, string> _users = new();
+        private readonly ILogger<UserService> _logger;
+
+
         private static readonly Dictionary<string, string> _resetTokens = new();
 
-        public UserService(IPasswordHasher<User> passwordHasher, AppDbContext context, IEmailService emailService, IHttpContextAccessor httpContextAccessor)
+        public UserService(IPasswordHasher<User> passwordHasher, AppDbContext context, IEmailService emailService, IHttpContextAccessor httpContextAccessor, ILogger<UserService> logger)
         {
             _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
             _context = context;
             _emailService = emailService;
             _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
-        //private readonly IEmailService _emailService;
 
         
 
@@ -43,10 +45,10 @@ namespace DGAuth.Services
 
            
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-            //if (existingUser != null)
-                //return "User already exists";
-            if (_users.ContainsKey(request.Email) || existingUser != null)
-            return "User already exists";
+            if (existingUser != null)
+                return "User already exists";
+           //if (existingUser != null)
+            //return "User already exists";
 
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -59,7 +61,8 @@ namespace DGAuth.Services
                 ResidentialAddress = request.ResidentialAddress,
                 PhoneNumber = request.PhoneNumber,
                 Email = request.Email,
-                //PasswordHash = passwordHash,
+                PasswordHash = hashedPassword,
+                
 
                 
 
@@ -76,15 +79,14 @@ namespace DGAuth.Services
                 return "Residential Address is Required";
             if (string.IsNullOrWhiteSpace(request.PhoneNumber))
                 return "Phone Number is Required";
-            //if (string.IsNullOrWhiteSpace(request.Username))
-            //return "Phone Number is Required";
+           
 
-            user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
+            
             _context.Users.Add(user);
-            await _context.Users.AddAsync(user);
+            
             await _context.SaveChangesAsync();
             // NEW: send welcome email
-            _users[request.Email] = request.Password;
+            //_users[request.Email] = request.Password;
             await _emailService.SendEmailAsync(
                 request.Email,
                 "Welcome!",
@@ -97,36 +99,53 @@ namespace DGAuth.Services
 
         public async Task<string> LoginAsync(LoginRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Username);
-           
-            
-            if (!_users.TryGetValue(request.Username, out var password) || password != request.Password)
-                return "Invalid credentials";
-
-
-            var claims = new List<Claim>
+            try
             {
-                new Claim(ClaimTypes.Name, request.Username)
+                _logger.LogInformation("Login attempt for user: {Username}", request.Username);
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Username);
+                if (user == null)
+                {
+                    _logger.LogWarning("User not found: {Username}", request.Username);
+                }
+                if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+                {
+                    _logger.LogWarning("Invalid password for user: {Username}", request.Username);
+                    return "Incorrect Password";
+                }
+
+                    
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.Email)
+                };
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var context = _httpContextAccessor.HttpContext;
+                if (context == null)
+                {
+                    _logger.LogError("HttpContext is null during login for user: {Username}", request.Username);
+                    return "HttpContext not available.";
+
+                }
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+                _logger.LogInformation("Login successful for user: {Username}", request.Username);
+                return "Login successful";
+                
 
 
-            };
 
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var context = _httpContextAccessor.HttpContext;
-            if (context == null)
-                return "No HttpContext";
-            await context.SignInAsync
-              (CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(identity));
-            //await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred during login for user: {Username}", request.Username);
 
-            return "Login successful";
-
+                return "An error occured during login. Please try again later.";
+            }
         }
 
         public async Task LogoutAsync()
         {
-            var context = _httpContextAccessor.HttpContext; //SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            var context = _httpContextAccessor.HttpContext; 
             if (context != null)
             {
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -134,19 +153,19 @@ namespace DGAuth.Services
 
         }
 
-        //private static readonly Dictionary<string, string> _resetTokens = new();
+        
 
         public async Task<string> ForgotPasswordAsync(ForgotPasswordRequest request)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-            if (!_users.ContainsKey(request.Email))
+            if (user == null)
                 return "User not found";
             // Simulate token generation
             var token = Guid.NewGuid().ToString();
             _resetTokens[request.Email] = token;
 
             // Simulate sending token via email
-            //Console.WriteLine($"Password reset token for {request.Username}: {token}");
+            
             await _emailService.SendEmailAsync(request.Email, "Password Reset Token",
                 $"Your reset token is: {token}");
 
@@ -163,15 +182,6 @@ namespace DGAuth.Services
                 return "Invalid or expired token";
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-
-            //var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Username);
-
-            if (!_users.ContainsKey(request.Username))
-                return "User not found";
-
-            
-
-            _users[request.Username] = request.NewPassword;
             _resetTokens.Remove(request.Username);
 
             await _context.SaveChangesAsync();

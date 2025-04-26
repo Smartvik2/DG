@@ -1,6 +1,6 @@
 @DGAuth_HostAddress = http://localhost:5069
 
-GET {{DGAuth_HostAddress}}/weatherforecast/
+GET {{DGAuth_HostAddress}}
 Accept: application/json
 
 ###
