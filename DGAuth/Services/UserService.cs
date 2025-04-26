@@ -90,7 +90,7 @@ namespace DGAuth.Services
             await _emailService.SendEmailAsync(
                 request.Email,
                 "Welcome!",
-                $"Hi {request.Username}, your account has been created successfully!");
+                $"Hi {request.FirstName}  {request.OtherNames}, your account has been created successfully!");
 
             return "Registration successful";
 
@@ -101,16 +101,16 @@ namespace DGAuth.Services
         {
             try
             {
-                _logger.LogInformation("Login attempt for user: {Username}", request.Username);
+                _logger.LogInformation("Login attempt for user: {Username}", request.Email);
 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Username);
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
                 if (user == null)
                 {
-                    _logger.LogWarning("User not found: {Username}", request.Username);
+                    _logger.LogWarning("User not found: {Username}", request.Email);
                 }
                 if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 {
-                    _logger.LogWarning("Invalid password for user: {Username}", request.Username);
+                    _logger.LogWarning("Invalid password for user: {Username}", request.Email);
                     return "Incorrect Password";
                 }
 
@@ -123,12 +123,12 @@ namespace DGAuth.Services
                 var context = _httpContextAccessor.HttpContext;
                 if (context == null)
                 {
-                    _logger.LogError("HttpContext is null during login for user: {Username}", request.Username);
+                    _logger.LogError("HttpContext is null during login for user: {Username}", request.Email);
                     return "HttpContext not available.";
 
                 }
                 await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-                _logger.LogInformation("Login successful for user: {Username}", request.Username);
+                _logger.LogInformation("Login successful for user: {Username}", request.Email);
                 return "Login successful";
                 
 
@@ -137,7 +137,7 @@ namespace DGAuth.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred during login for user: {Username}", request.Username);
+                _logger.LogError(ex, "An error occurred during login for user: {Username}", request.Email);
 
                 return "An error occured during login. Please try again later.";
             }
@@ -174,15 +174,15 @@ namespace DGAuth.Services
 
         public async Task<string> ResetPasswordAsync(ResetPasswordRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Username);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
                 return "User not found";
 
-            if (!_resetTokens.TryGetValue(request.Username, out var storedToken) || storedToken != request.Token)
+            if (!_resetTokens.TryGetValue(request.Email, out var storedToken) || storedToken != request.Token)
                 return "Invalid or expired token";
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-            _resetTokens.Remove(request.Username);
+            _resetTokens.Remove(request.Email);
 
             await _context.SaveChangesAsync();
 
