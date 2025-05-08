@@ -5,7 +5,7 @@
 namespace DGAuth.Migrations
 {
     /// <inheritdoc />
-    public partial class HKeys : Migration
+    public partial class CPassword : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

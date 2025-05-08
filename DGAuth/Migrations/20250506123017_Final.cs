@@ -5,7 +5,7 @@
 namespace DGAuth.Migrations
 {
     /// <inheritdoc />
-    public partial class HashedPassW : Migration
+    public partial class Final : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

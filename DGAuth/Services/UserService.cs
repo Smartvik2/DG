@@ -5,7 +5,7 @@ using DGAuth.Models;
 using DGAuth.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using DGAuth.Migrations;
+//using DGAuth.Migrations;
 
 namespace DGAuth.Services
 {
@@ -90,7 +90,7 @@ namespace DGAuth.Services
             await _emailService.SendEmailAsync(
                 request.Email,
                 "Welcome!",
-                $"Hi {request.FirstName}  {request.OtherNames}, your account has been created successfully!");
+                $"Hi {request.FirstName + request.OtherNames}, your account has been created successfully!");
 
             return "Registration successful";
 
@@ -117,9 +117,13 @@ namespace DGAuth.Services
                     
                 var claims = new List<Claim>
                 {
-                    new Claim(ClaimTypes.Name, user.Email)
+                    //new Claim(ClaimTypes.Name, user.Email)
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Name, user.Email ?? string.Empty),
+                    new Claim(ClaimTypes.Role, user.Role ?? "User")
                 };
                 var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
                 var context = _httpContextAccessor.HttpContext;
                 if (context == null)
                 {
@@ -127,7 +131,12 @@ namespace DGAuth.Services
                     return "HttpContext not available.";
 
                 }
-                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties()
+                {
+                    IsPersistent = true,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(1),
+                    AllowRefresh = true
+                });
                 _logger.LogInformation("Login successful for user: {Username}", request.Email);
                 return "Login successful";
                 
