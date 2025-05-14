@@ -16,6 +16,13 @@ namespace DGAuth.Data
         public DbSet<UserProfile> Profiles { get; set; }
         public DbSet<LSTSFORM> LstsForms { get; set; }
         public DbSet<PrayerRequests> Requests { get; set; }
+        public DbSet<AudioMessage> AudioMessages { get; set; }
+        
+        public DbSet<Announcement> Announcements { get; set; }
+        //public DbSet<ProfilePicture> 
+        
+
+
 
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }

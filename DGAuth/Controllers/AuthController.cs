@@ -25,8 +25,9 @@ namespace DGAuth.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly ILogger<AuthController> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public AuthController(AppDbContext dbContext, IConfiguration configuration, IUserService userService, IEmailService emailService, UserManager<User> userManager, SignInManager<User> signInManager, ILogger<AuthController> logger)
+        public AuthController(AppDbContext dbContext, IConfiguration configuration, IUserService userService, IEmailService emailService, UserManager<User> userManager, SignInManager<User> signInManager, ILogger<AuthController> logger, IWebHostEnvironment env)
         {
             _dbContext = dbContext;
             _configuration = configuration;
@@ -35,6 +36,7 @@ namespace DGAuth.Controllers
             _userManager = userManager;
             _signInManager = signInManager;
             _logger = logger;
+            _env = env;
         }
 
         [HttpGet("test")]
@@ -217,6 +219,10 @@ namespace DGAuth.Controllers
                 Email = dto.Email,
                 DepartmentInChurch = dto.DepartmentInChurch,
                 PositionInChurch = dto.PositionInChurch,
+                DepartmentInSchool = dto.DepartmentInSchool,
+                Level = dto.Level,
+                Student = dto.Student,
+                Gender = dto.Gender,
                 SubmittedAt = dto.SubmittedAt,
             };
 
@@ -276,17 +282,138 @@ namespace DGAuth.Controllers
             {
                 p.PrayerRequest,
                 p.SubmittedAt,
-                FirstName = p.User.Profile.FirstName,
-                OtherNames = p.User.Profile.OtherNames
+                FirstName = p.User?.Profile?.FirstName,
+                OtherNames = p?.User?.Profile?.OtherNames
             });
 
             return Ok(Results);
         }
 
-            
+        [HttpPost("assign-admin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AssignAdminRole([FromBody] AssignRoleRequest request)
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+            {
+                return NotFound(new { message = "User Email not Found" });
+            }
+
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+            if (isAdmin)
+            {
+                return BadRequest(new { message = "User is already an Admin" });
+            }
+
+            var result = await _userManager.AddToRoleAsync(user, "Admin");
+            if (!result.Succeeded)
+            {
+                return BadRequest(new { message = "Failed to assign Admin Role" });
+            }
+
+            await _userManager.AddToRoleAsync(user, "Admin");
+            user.Role = "Admin";
+            await _userManager.UpdateAsync(user);
+
+            return Ok(new { message = "User Promoted to Admin" });
 
 
+        }
 
+
+        [HttpGet("isAadmin")]
+        [Authorize]
+        public async Task<ActionResult<bool>> IsAdmin()
+        {
+            // 1) Get the current user from the cookie/principal
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+                return Unauthorized();   // 401 if somehow not logged in
+
+            // 2) Check their “Admin” role membership
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            // 3) Return 200 OK with true/false
+            return Ok(isAdmin);
+        }
+
+
+        [HttpPost("Announcements")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Announcement([FromForm] AnnouncementsDTO dto)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+                return Unauthorized();
+            //var announcement = new Announcements
+            string? imageUrl = null;
+
+            if (dto.Image != null)
+            {
+                var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.Image.FileName);
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await dto.Image.CopyToAsync(stream);
+                }
+
+                imageUrl = $"/uploads/{fileName}";
+            }
+
+            var announcement = new Announcement
+            {
+                Title = dto.Title,
+                Content = dto.Content,
+                ImageUrl = imageUrl,
+                //CreatedBy = User.Identity?.Name
+            };
+
+            _dbContext.Announcements.Add(announcement);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(announcement);
+
+        }
+
+        [HttpGet("viewAnnouncements")]
+        [Authorize]
+        public async Task<IActionResult> GetAll()
+        {
+            var announcements = await _dbContext.Announcements
+                .OrderByDescending(a => a.CreatedAt)
+                .ToListAsync();
+
+            return Ok(announcements);
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteAnnouncement(int id)
+        {
+            var announcement = await _dbContext.Announcements.FindAsync(id);
+
+            if (announcement == null)
+                return NotFound(new { message = "Announcement not found." });
+
+            // Delete the image file if it exists
+            if (!string.IsNullOrEmpty(announcement.ImageUrl))
+            {
+                var filePath = Path.Combine(_env.WebRootPath, announcement.ImageUrl.TrimStart('/'));
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+            }
+            _dbContext.Announcements.Remove(announcement);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new { message = "Announcement deleted successfully." });
+        }
 
 
     }

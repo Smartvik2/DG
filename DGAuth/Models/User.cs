@@ -15,6 +15,8 @@ namespace DGAuth.Models
         public string DepartmentInSchool { get; set; } = string.Empty;
         public string ResidentialAddress { get; set; } = string.Empty;
         //public string PhoneNumber { get; set; } = string.Empty;
+        public string? ProfilePictureUrl { get; set; }
+
         public string Role { get; set; } = string.Empty;
     }
 }

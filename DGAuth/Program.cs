@@ -63,9 +63,11 @@ builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 builder.Services.AddIdentity<User, IdentityRole>(options =>
 {
-    options.Password.RequireDigit = true;
+    options.Password.RequireDigit = false;
     options.Password.RequireNonAlphanumeric = false;
-    //options.Password.RequiredLength = 6;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequiredLength = 6;
     options.SignIn.RequireConfirmedAccount = false;
     options.User.RequireUniqueEmail = true;
     options.SignIn.RequireConfirmedEmail = false;
@@ -126,10 +128,9 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();
-
+app.UseStaticFiles();
+app.UseRouting();
 app.UseCors("AllowFrontend");
-
-//app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 

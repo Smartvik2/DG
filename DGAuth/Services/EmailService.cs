@@ -15,7 +15,7 @@ namespace DGAuth.Services
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress("Your App", _fromEmail));
+            message.From.Add(new MailboxAddress("Divine Grace UNEC", _fromEmail));
             message.To.Add(new MailboxAddress("", toEmail));
             message.Subject = subject;
             message.Body = new TextPart("plain") { Text = body };
